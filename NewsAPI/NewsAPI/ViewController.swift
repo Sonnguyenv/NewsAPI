@@ -1,20 +1,64 @@
-//
-//  ViewController.swift
-//  NewsAPI
-//
-//  Created by Sonnv on 1/21/19.
-//  Copyright © 2019 Sonnv. All rights reserved.
-//
 
 import UIKit
 
 class ViewController: UIViewController {
-
+    
+    @IBOutlet weak var myTable: UITableView!
+    
+    var newsArray = [News]()
+    
     override func viewDidLoad() {
         super.viewDidLoad()
-        // Do any additional setup after loading the view, typically from a nib.
+        guard let urlString = URL(string: "http://172.16.18.91/18175d1_mobile_100_fresher/public/api/v0/listNews") else { return }
+        URLSession.shared.dataTask(with: urlString) { (data, response, error) in
+            guard let data = data else { return }
+            do {
+                let main = try JSONDecoder().decode(Main.self, from: data)
+            
+                DispatchQueue.main.async {
+                    self.newsArray = main.response.news
+                    self.myTable.reloadData()
+                }
+            } catch {}
+        }.resume()
     }
-
-
 }
 
+extension ViewController: UITableViewDataSource {
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return newsArray.count
+    }
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "NewsTableViewCell") as! NewsTableViewCell
+        cell.titleLable.text = newsArray[indexPath.row].title
+        cell.dateLable.text = newsArray[indexPath.row].publish_date
+        if let urlImage = URL(string: newsArray[indexPath.row].thumb_img) {
+            DispatchQueue.global().async {
+                let data = try? Data(contentsOf: urlImage)
+                if let data = data {
+                    let image = UIImage(data: data)
+                    DispatchQueue.main.async {
+                        cell.imgeView.image = image
+                    }
+                }
+            }
+        }
+        return cell
+    }
+}
+
+extension ViewController: UITableViewDelegate {
+    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+        return 120
+    }
+    
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        let storyboard = UIStoryboard(name: "Main", bundle: nil)
+        let screen = storyboard.instantiateViewController(withIdentifier: "InformationVC") as! InformationVC
+        screen.inforNew = newsArray[indexPath.row].description
+        screen.titleNew = newsArray[indexPath.row].title
+        screen.author = newsArray[indexPath.row].author
+        navigationController?.pushViewController(screen, animated: true)
+    }
+}
